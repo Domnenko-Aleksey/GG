@@ -5,15 +5,15 @@ import requests
 import pandas as pd
 import numpy as np
 from typing import Dict, Text
-from pymongo import MongoClient
+# from pymongo import MongoClient
 
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import tensorflow_recommenders as tfrs
 
+
 class ModelTfrs():
     def __init__(self, config):
-        print('MODEL TFRS -> INIT')
         self.config = config  # Данные из конфигурационного файла
         self.data_duration = []  # Временное хранилище списка получаемых данных
         self.df_duration = None  # Тут размещаем данные 'duration' в формате Pandas, полученные результате работы метода __get_data_duration
@@ -21,13 +21,18 @@ class ModelTfrs():
         self.log = []  # Лог операций
         self.model = None  # Тут будет храниться модель
         self.run_time = 0
+        self.files_path = self.config.path + '/ModelTfrs'
+
+        # Создаём папку для файлов модели
+        if not os.path.isdir(self.files_path):
+            os.makedirs(self.files_path, mode=0o755, exist_ok=True)
 
 
     # === ОБУЧЕНИЕ МОДЕЛИ ===
     def fit(self, days=30):
         # Удаляем файл логов
-        if os.path.isfile(self.config.log_file): 
-            os.remove(self.config.log_file)
+        if os.path.isfile(self.files_path + '/sataus.log'): 
+            os.remove(self.files_path + '/sataus.log')
 
         self.run_time = 0  # Обнуляем время выполнения
 
@@ -52,9 +57,24 @@ class ModelTfrs():
         return answer
 
 
+    # Предсказание - переопределяем в наследуемом классе
+    def predict(self, user_id):
+        # Создаём модель, которая использует необработанные функции запроса, и
+        index = tfrs.layers.factorized_top_k.BruteForce(self.model.user_model)
+        # рекомендует фильмы из всего набора данных фильмов.
+        index.index_from_dataset(
+            tf.data.Dataset.zip((self.chanells_tensor.batch(10000), self.chanells_tensor.batch(10000).map(self.model.movie_model)))
+        )
+
+        # Получить рекомендации для пользователя с индексом user_id, например: "38082".
+        _, titles = index(tf.constant([user_id]))
+        answer = titles.numpy().astype('str').tolist()
+
+        return answer[0]
+
+
     # === ПОЛУЧЕНИЕ ДАННЫХ "DURATION" ПО API ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
     def __get_data_duration(self,  days=30):
-        print('MODEL TFRS -> GET DATA')
 
         # !!! БАЗА НЕ АКТУАЛЬНАЯ - ДОБАВЛЯЕМ КОСТЫЛИ ДЛЯ СМЕЩЕНИЯ ПО СРОКАМ НА1 ГОД
         crutch = 86400 * 365
@@ -83,7 +103,6 @@ class ModelTfrs():
                     self.data_duration.extend(data_list)
                     print(i, len(self.data_duration), len(data_list))
                     if len(data_list) < self.config.gg_pagination_step:  # Шаг пагинации
-                        print(self.data_duration[0:5])
                         self.df_duration = pd.DataFrame.from_dict(self.data_duration)
                         break
             except:
@@ -112,45 +131,12 @@ class ModelTfrs():
 
         self.run_time += delta_time
 
-        print('--- ДАННЫЕ "DURATION" ПОЛУЧЕНЫ ---')
-        print(f'РАЗМЕР ДАННЫХ: {self.df_duration.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
-        print(self.df_duration.head(10))
         return answer 
-
-
-    # === ПОЛУЧЕНИЕ ДАННЫХ "WEBSITE" MONGODB ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
-    def __get_data_website(self, days=30):
-        print('MODEL -> GET DATA')
-
-        start_time = time.time()
-
-        client = MongoClient(self.config.mongo_client_website)
-        db = client['stats']
-        website = db['website']
-
-        # Отбор по дням
-        timestamp = (int(time.time()) - int(days) * 86400)*1000
-        results = website.find({"timestamp":{"$gte":timestamp}})
-        res = [r for r in results]
-        self.df_website = pd.DataFrame(list(res))
-        print(self.df_website.head())
-
-        print('--- ДАННЫЕ "WEBSITE" ПОЛУЧЕНЫ ---')
-        delta_time = time.time() - start_time
-        print(f'РАЗМЕР ДАТАФРЕЙМА: {self.df_website.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
-
-        answer = {
-            'status': 'OK', 
-            'message': f'Data received, number of rows: {self.df_website.shape[0]}, execution time: {round(delta_time, 4)}s'
-        }
-        self.__logging(answer)
-        return answer
 
 
 
     # === ОБРАБОТКА ДАННЫХ ===
     def __data_processing(self):
-        print('MODEL -> DATA PROCESSING')
         start_time = time.time()
 
         df = self.df_duration
@@ -159,7 +145,6 @@ class ModelTfrs():
         # --- Удаляем стримы с небольшим количество просмотров (20% от среднего) ---
         # Находим среднее число просмотров стрима
         view_mean = df.groupby(['channel_id']).size().mean()
-        print('СРЕДНЕЕ КОЛИЧЕСТВО ПРОСМОТРОВ', view_mean)
 
         # Создадим новый датасет только с подсчетом рейтинга, чтобы исключить некоторые
         view_counter = pd.DataFrame({'Count' : df.groupby(['channel_id']).size()}).reset_index()
@@ -168,14 +153,10 @@ class ModelTfrs():
         view_counter = view_counter.loc[view_counter['Count'] > view_mean/5]  # 1/5
         k_2 = view_counter.shape[0]
 
-        print(f'КАНАЛОВ ДО ФИЛЬТРАЦИИ: {k_1}, ПОСЛЕ: {k_2}')
-
         reducer = df['channel_id'].isin(view_counter['channel_id'])
         df_2 = df[reducer]
-        print(f'СТРИМОВ ДО ФИЛЬТРАЦИИ: {df.shape[0]}, ПОСЛЕ: {df_2.shape[0]}')
 
         self.df_duration = df_2.drop_duplicates()
-        print(f'ПОСЛЕ УДАЛЕНИЯ ДУБЛИКАТОВ: {self.df_duration.shape[0]}')
 
         delta_time = time.time() - start_time
         self.run_time += delta_time
@@ -190,7 +171,7 @@ class ModelTfrs():
 
     # === ЗАПИСЬ В ЛОГ ===
     def __logging(self, answer):
-        with open(self.config.log_file, 'a') as file:
+        with open(self.files_path + '/sataus.log', 'a') as file:
             now = datetime.datetime.now()
             d = f'{now.year}-{now.month}-{now.day} {now.hour}:{now.minute}:{now.second}'
             text = f"{d}, {answer['status']}: {answer['message']} "
@@ -200,7 +181,6 @@ class ModelTfrs():
 
     # === ОБУЧЕНИЕ МОДЕЛИ ===
     def __fit_model(self):
-        print('MODEL -> FIT MODEL')
         start_time = time.time()
 
         # --- Получаем tf датасет уникальных пользователей ---
@@ -214,7 +194,6 @@ class ModelTfrs():
         ratings_ser = self.df_duration['user_id']
         df_ratings = pd.DataFrame(ratings_ser)
         df_ratings['channel_id'] = self.df_duration['channel_id']
-        print('RATINGS:', df_ratings.shape)
         ratings_b_arr = df_ratings.to_numpy().astype('bytes')
         ratings = tf.data.Dataset.from_tensor_slices({"channel_id": ratings_b_arr[:, 1], "user_id": ratings_b_arr[:, 0]})
 
@@ -278,21 +257,6 @@ class ModelTfrs():
 
         return answer
 
-
-    # Предсказание - переопределяем в наследуемом классе
-    def predict(self, user_id):
-        # Создаём модель, которая использует необработанные функции запроса, и
-        index = tfrs.layers.factorized_top_k.BruteForce(self.model.user_model)
-        # рекомендует фильмы из всего набора данных фильмов.
-        index.index_from_dataset(
-            tf.data.Dataset.zip((self.chanells_tensor.batch(10000), self.chanells_tensor.batch(10000).map(self.model.movie_model)))
-        )
-
-        # Получить рекомендации для пользователя с индексом user_id, например: "38082".
-        _, titles = index(tf.constant([user_id]))
-        answer = titles.numpy().astype('str').tolist()
-
-        return answer[0]
 
 
 

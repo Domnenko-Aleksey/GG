@@ -1,1 +1,0 @@
-2022-12-6 22:3:29, OK: Data received, number of rows: 171354, execution time: 500.1732s 2022-12-6 22:3:29, OK: Data processed, number of rows: 165761, execution time: 0.1052s 2022-12-6 22:3:50, OK: Model training completed, top_1: 0.1130, top_5: 0.9970, top_10: 1.0000, top_50: 1.0000, top_100: 1.0000, total execution time: 522s  

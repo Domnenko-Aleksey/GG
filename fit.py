@@ -1,7 +1,13 @@
 import json
 import pandas as pd
 import config
-from ModelTfrs import ModelTfrs  # Класс реализации модели
+# Классы реализации модели
+from ModelTfrs import ModelTfrs
+from ModelFastai import ModelFastai
+from ModelLightFM import ModelLightFM
+from ModelGMF import ModelGMF
+from ModelNCF import ModelNCF
+
 
 def fit(CORE):
     print('--- FIT MODEL ---')
@@ -10,7 +16,7 @@ def fit(CORE):
     mn = 1 if 'model' not in CORE.req else int(CORE.req['model'])
 
     # Добавляем модели в список
-    model_list = [ModelTfrs]
+    model_list = [ModelTfrs, ModelFastai, ModelLightFM, ModelGMF, ModelNCF]
 
     if mn < 1 or mn > len(model_list):
         mn = 1
