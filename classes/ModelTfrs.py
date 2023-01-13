@@ -31,8 +31,8 @@ class ModelTfrs():
     # === ОБУЧЕНИЕ МОДЕЛИ ===
     def fit(self, days=30):
         # Удаляем файл логов
-        if os.path.isfile(self.files_path + '/sataus.log'): 
-            os.remove(self.files_path + '/sataus.log')
+        if os.path.isfile(self.files_path + '/status.log'): 
+            os.remove(self.files_path + '/status.log')
 
         self.run_time = 0  # Обнуляем время выполнения
 
@@ -171,10 +171,10 @@ class ModelTfrs():
 
     # === ЗАПИСЬ В ЛОГ ===
     def __logging(self, answer):
-        with open(self.files_path + '/sataus.log', 'a') as file:
+        with open(self.files_path + '/status.log', 'a') as file:
             now = datetime.datetime.now()
             d = f'{now.year}-{now.month}-{now.day} {now.hour}:{now.minute}:{now.second}'
-            text = f"{d}, {answer['status']}: {answer['message']} "
+            text = f"{d}, {answer['status']}: {answer['message']} \n"
             file.write(text)
 
 
@@ -238,7 +238,7 @@ class ModelTfrs():
         cached_test = test.batch(16).cache()
 
         # Обучим модель
-        history = self.model.fit(cached_train, epochs=20)
+        history = self.model.fit(cached_train, epochs=50)
 
         delta_time = time.time() - start_time
         self.run_time += delta_time

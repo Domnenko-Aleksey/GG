@@ -7,6 +7,8 @@ from ModelFastai import ModelFastai
 from ModelLightFM import ModelLightFM
 from ModelGMF import ModelGMF
 from ModelNCF import ModelNCF
+from ModelCollaborativeF import ModelCollaborativeF
+from NNHS import NNHS
 
 
 def fit(CORE):
@@ -16,7 +18,7 @@ def fit(CORE):
     mn = 1 if 'model' not in CORE.req else int(CORE.req['model'])
 
     # Добавляем модели в список
-    model_list = [ModelTfrs, ModelFastai, ModelLightFM, ModelGMF, ModelNCF]
+    model_list = [ModelTfrs, ModelFastai, ModelLightFM, ModelGMF, ModelNCF, ModelCollaborativeF, NNHS]
 
     if mn < 1 or mn > len(model_list):
         mn = 1

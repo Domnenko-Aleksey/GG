@@ -36,8 +36,8 @@ class ModelLightFM():
       def fit(self, days=30):
 
           # Удаляем файл логов
-          if os.path.isfile(self.files_path + '/sataus.log'): 
-              os.remove(self.files_path + '/sataus.log')
+          if os.path.isfile(self.files_path + '/status.log'): 
+              os.remove(self.files_path + '/status.log')
 
           self.run_time = 0  # Обнуляем время выполнения
 
@@ -164,10 +164,10 @@ class ModelLightFM():
 
       # === ЗАПИСЬ В ЛОГ ===
       def __logging(self, answer):
-          with open(self.files_path + '/sataus.log', 'a') as file:
+          with open(self.files_path + '/status.log', 'a') as file:
               now = datetime.datetime.now()
               d = f'{now.year}-{now.month}-{now.day} {now.hour}:{now.minute}:{now.second}'
-              text = f"{d}, {answer['status']}: {answer['message']} "
+              text = f"{d}, {answer['status']}: {answer['message']} \n"
               file.write(text)
 
       # === ОБРАБОТКА ДАННЫХ WEBSITE===
