@@ -23,7 +23,7 @@ import collections
 class ModelGMF():
 
       def __init__(self, config):
-          print('MODEL GMF -> INIT')
+          # print('MODEL GMF -> INIT')
           self.config = config          # Данные из конфигурационного файла
           self.data_duration = []       # Временное хранилище списка получаемых данных
           self.df_duration = None       # Тут размещаем данные 'duration' в формате Pandas, полученные в результате работы метода __get_data_duration
@@ -86,15 +86,12 @@ class ModelGMF():
 
       # === ПОЛУЧЕНИЕ ДАННЫХ "DURATION" ПО API ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
       def __get_data_duration(self,  days=30):
-          print('MODEL GMF -> GET DATA')
-
-          # !!! БАЗА НЕ АКТУАЛЬНАЯ - ДОБАВЛЯЕМ КОСТЫЛИ ДЛЯ СМЕЩЕНИЯ ПО СРОКАМ НА 1 ГОД
-          crutch = 86400 * 365
+          # print('MODEL GMF -> GET DATA')
 
           start_time = time.time()
-          from_time = int(time.time()) - int(days) * 86400 - crutch
+          from_time = int(time.time()) - int(days) * 86400
           from_time_url = f'&from={from_time}'
-          to_time = int(time.time()) - crutch
+          to_time = int(time.time())
           from_to_time = f'&to={to_time}'
 
           # --- Соединение с GG Api и получение данных ---
@@ -113,9 +110,9 @@ class ModelGMF():
                       # Добавляем данные в наш список
                       data_list = api_req.json()
                       self.data_duration.extend(data_list)
-                      print(i, len(self.data_duration), len(data_list))
+                      # print(i, len(self.data_duration), len(data_list))
                       if len(data_list) < self.config.gg_pagination_step:  # Шаг пагинации
-                          print(self.data_duration[0:5])
+                          # print(self.data_duration[0:5])
                           self.df_duration = pd.DataFrame.from_dict(self.data_duration)
                           break
               except:
@@ -144,15 +141,15 @@ class ModelGMF():
 
           self.run_time += delta_time
 
-          print('--- ДАННЫЕ "DURATION" ПОЛУЧЕНЫ ---')
-          print(f'РАЗМЕР ДАННЫХ: {self.df_duration.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
-          print(self.df_duration.head(10))
+          # print('--- ДАННЫЕ "DURATION" ПОЛУЧЕНЫ ---')
+          # print(f'РАЗМЕР ДАННЫХ: {self.df_duration.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
+          # print(self.df_duration.head(10))
           return answer 
 
 
       # === ПОЛУЧЕНИЕ ДАННЫХ "WEBSITE" MONGODB ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
       def __get_data_website(self, days=30):
-          print('MODEL -> GET DATA')
+          # print('MODEL -> GET DATA')
 
           start_time = time.time()
 
@@ -165,11 +162,11 @@ class ModelGMF():
           results = website.find({"timestamp": {"$gte":timestamp}})
           res = [r for r in results]
           self.df_website = pd.DataFrame(list(res))
-          print(self.df_website.head())
+          # print(self.df_website.head())
 
-          print('--- ДАННЫЕ "WEBSITE" ПОЛУЧЕНЫ ---')
+          # print('--- ДАННЫЕ "WEBSITE" ПОЛУЧЕНЫ ---')
           delta_time = time.time() - start_time
-          print(f'РАЗМЕР ДАТАФРЕЙМА: {self.df_website.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
+          # print(f'РАЗМЕР ДАТАФРЕЙМА: {self.df_website.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
 
           answer = {
               'status': 'OK', 
@@ -182,7 +179,7 @@ class ModelGMF():
 
       # === ОБРАБОТКА ДАННЫХ `Duration`===
       def __data_processing_duration(self):
-          print('MODEL -> DATA PROCESSING')
+          # print('MODEL -> DATA PROCESSING')
           start_time = time.time()
 
           df = self.df_duration
@@ -191,7 +188,7 @@ class ModelGMF():
           # --- Удаляем стримы с небольшим количество просмотров (20% от среднего) ---
           # Находим среднее число просмотров стрима
           view_mean = df.groupby(['channel_id']).size().mean()
-          print('СРЕДНЕЕ КОЛИЧЕСТВО ПРОСМОТРОВ', view_mean)
+          # print('СРЕДНЕЕ КОЛИЧЕСТВО ПРОСМОТРОВ', view_mean)
 
           # Создадим новый датасет только с подсчетом рейтинга, чтобы исключить некоторые
           view_counter = pd.DataFrame({'Count' : df.groupby(['channel_id']).size()}).reset_index()
@@ -200,14 +197,14 @@ class ModelGMF():
           view_counter = view_counter.loc[view_counter['Count'] > view_mean/5]  # 1/5
           k_2 = view_counter.shape[0]
 
-          print(f'КАНАЛОВ ДО ФИЛЬТРАЦИИ: {k_1}, ПОСЛЕ: {k_2}')
+          # print(f'КАНАЛОВ ДО ФИЛЬТРАЦИИ: {k_1}, ПОСЛЕ: {k_2}')
 
           reducer = df['channel_id'].isin(view_counter['channel_id'])
           df_2 = df[reducer]
-          print(f'СТРИМОВ ДО ФИЛЬТРАЦИИ: {df.shape[0]}, ПОСЛЕ: {df_2.shape[0]}')
+          # print(f'СТРИМОВ ДО ФИЛЬТРАЦИИ: {df.shape[0]}, ПОСЛЕ: {df_2.shape[0]}')
 
           self.df_duration = df_2.drop_duplicates()
-          print(f'ПОСЛЕ УДАЛЕНИЯ ДУБЛИКАТОВ: {self.df_duration.shape[0]}')
+          # print(f'ПОСЛЕ УДАЛЕНИЯ ДУБЛИКАТОВ: {self.df_duration.shape[0]}')
 
           delta_time = time.time() - start_time
           self.run_time += delta_time
@@ -239,7 +236,7 @@ class ModelGMF():
 
       # === ОБУЧЕНИЕ МОДЕЛИ ===
       def __fit_model(self):
-          print('MODEL -> FIT MODEL')
+          # print('MODEL -> FIT MODEL')
           start_time = time.time()
 
           '''
@@ -317,7 +314,7 @@ class ModelGMF():
 
           # Сохраним список популярных каналов для рекомендации новым пользователям в количестве self.recommend_num
           self.pop_channels_rec = pop_channels['channel_id'].iloc[:self.recommend_num].astype(str).tolist()
-          print(f'ПОДГОТОВЛЕН СПИСОК ПОПУЛЯРНЫХ КАНАЛОВ ДЛЯ НОВИЧКОВ В КОЛИЧЕСТВЕ: {len(self.pop_channels_rec)}')
+          # print(f'ПОДГОТОВЛЕН СПИСОК ПОПУЛЯРНЫХ КАНАЛОВ ДЛЯ НОВИЧКОВ В КОЛИЧЕСТВЕ: {len(self.pop_channels_rec)}')
 
 
           # --- часть 2 ---
@@ -469,8 +466,8 @@ class ModelGMF():
           history = self.model.fit(train, epochs=30, verbose=1, validation_data=val_ds, validation_steps=10)
           # Оценка качества на тестовой выборке
           eval_result = self.model.evaluate(test, return_dict=True, verbose=0)
-          print("\n--- Оценка качества обучения модели на тестовой выборке: ---")
-          print(eval_result)
+          # print("\n--- Оценка качества обучения модели на тестовой выборке: ---")
+          # print(eval_result)
 
           # Извлекаем скрытое пространство обученной модели
           channel_emb = self.model.ranking_model.channel_model.layers[-1].get_weights()[0]
@@ -526,7 +523,7 @@ class ModelGMF():
           else:
               # Если такого пользователя нет, то выдаём заготовленный список популярных каналов
               answer = self.pop_channels_rec
-              #print("Новый пользователь")
+              ## print("Новый пользователь")
 
           # В итоговом выводе - список с рекомендациями (channel_id) тип `str`
           return answer

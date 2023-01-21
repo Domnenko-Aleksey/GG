@@ -22,6 +22,7 @@ class ModelTfrs():
         self.model = None  # Тут будет храниться модель
         self.run_time = 0
         self.files_path = self.config.path + '/ModelTfrs'
+        self.popular_list = []  # Тут будет храниться список 100 популярных каналов
 
         # Создаём папку для файлов модели
         if not os.path.isdir(self.files_path):
@@ -76,13 +77,10 @@ class ModelTfrs():
     # === ПОЛУЧЕНИЕ ДАННЫХ "DURATION" ПО API ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
     def __get_data_duration(self,  days=30):
 
-        # !!! БАЗА НЕ АКТУАЛЬНАЯ - ДОБАВЛЯЕМ КОСТЫЛИ ДЛЯ СМЕЩЕНИЯ ПО СРОКАМ НА1 ГОД
-        crutch = 86400 * 365
-
         start_time = time.time()
-        from_time = int(time.time()) - int(days)*86400 - crutch
+        from_time = int(time.time()) - int(days)*86400
         from_time_url = f'&from={from_time}'
-        to_time = int(time.time()) - crutch
+        to_time = int(time.time())
         from_to_time = f'&to={to_time}'
 
         # --- Соединение с GG Api и получение данных ---
@@ -101,7 +99,7 @@ class ModelTfrs():
                     # Добавляем данные в наш список
                     data_list = api_req.json()
                     self.data_duration.extend(data_list)
-                    print(i, len(self.data_duration), len(data_list))
+                    # print(i, len(self.data_duration), len(data_list))
                     if len(data_list) < self.config.gg_pagination_step:  # Шаг пагинации
                         self.df_duration = pd.DataFrame.from_dict(self.data_duration)
                         break
@@ -183,6 +181,9 @@ class ModelTfrs():
     def __fit_model(self):
         start_time = time.time()
 
+        # --- Находим самые популярные каналы ---
+        self.popular_list = self.df_duration.groupby(['channel_id']).size().sort_values(ascending=False)[0:100].tolist()
+
         # --- Получаем tf датасет уникальных пользователей ---
         users_id_arr = self.df_duration['user_id'].unique().astype('bytes')
 
@@ -197,12 +198,21 @@ class ModelTfrs():
         ratings_b_arr = df_ratings.to_numpy().astype('bytes')
         ratings = tf.data.Dataset.from_tensor_slices({"channel_id": ratings_b_arr[:, 1], "user_id": ratings_b_arr[:, 0]})
 
-        # --- Разбиваем выборку на учебную и тестовую ---
+        # --- Перемешиваем данные ---
         tf.random.set_seed(42)
         shuffled = ratings.shuffle(df_ratings.shape[0], seed=42, reshuffle_each_iteration=False)
 
-        train = shuffled.take(1_000)
-        test = shuffled.skip(1_000).take(df_ratings.shape[0] - 1000)
+        # --- Рассчитываем длинну train и test данных в зависимости от длинны выбоки ---
+        if len(shuffled) > 6000 :
+            train_num = 5000
+            test_num = 1000
+        else:
+            train_num = round(len(shuffled) * 0.8)
+            test_num = len(shuffled) - train_num
+
+        # --- Разбиваем выборку на учебную и тестовую ---
+        train = shuffled.take(train_num)
+        test = shuffled.skip(train_num).take(test_num)
 
         # --- РЕКОМЕНДАТЕЛЬНАЯ СИСТЕМА ---
         embedding_dimension = 64  # Размер вектора сжатого признакового пространства
@@ -238,7 +248,7 @@ class ModelTfrs():
         cached_test = test.batch(16).cache()
 
         # Обучим модель
-        history = self.model.fit(cached_train, epochs=50)
+        history = self.model.fit(cached_train, epochs=18, verbose=0)
 
         delta_time = time.time() - start_time
         self.run_time += delta_time

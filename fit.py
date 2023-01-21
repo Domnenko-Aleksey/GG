@@ -12,7 +12,7 @@ from NNHS import NNHS
 
 
 def fit(CORE):
-    print('--- FIT MODEL ---')
+    # print('--- FIT MODEL ---')
 
     days = 30 if 'days' not in CORE.req else CORE.req['days']
     mn = 1 if 'model' not in CORE.req else int(CORE.req['model'])

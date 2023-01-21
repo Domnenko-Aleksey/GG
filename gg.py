@@ -6,6 +6,7 @@ import config
 from Core import Core
 import fit  # Обучает модель
 import recom  # Выдаёт рекомендации
+import popular  # Выдаёт 100 популярных каналов в порядке убывания популярности
 # import popular  # Выдаёт популярные стримы
 
 app = Flask(__name__)
@@ -28,7 +29,7 @@ def route_model():
 
     acts_dict = {
         'recom': recom.recom, 
-        # 'popular': popular.popular,
+        'popular': popular.popular,
         'fit': fit.fit,
     }
 

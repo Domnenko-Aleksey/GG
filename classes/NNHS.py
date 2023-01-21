@@ -51,11 +51,9 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
     # Подгрузка базы duration в память
 
     def get_data(self):
-        crutch = 86400 * 365
-
-        from_time = int(time.time()) - int(self.days) * 86400 - crutch
+        from_time = int(time.time()) - int(self.days) * 86400
         from_time_url = f'&from={from_time}'
-        to_time = int(time.time()) - crutch
+        to_time = int(time.time())
         from_to_time = f'&to={to_time}'
         data_duration = []
 
@@ -127,7 +125,7 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
             self.durations.columns = ['join_time', 'ID_streamer', 'ID_user', 'close_time']
             self.durations = self.durations.sort_values(by=['join_time']).reset_index()
             self.durations.drop(columns=['index'], inplace=True)
-            print(f'Стримеров было: {pd.unique(self.durations["ID_streamer"]).shape}')
+            # print(f'Стримеров было: {pd.unique(self.durations["ID_streamer"]).shape}')
             # Удаление нецифровых индексов стримеров
             valid_streamers_id = []
             for streamer_id in pd.unique(self.durations['ID_streamer']):
@@ -137,8 +135,8 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
                     pass
             self.durations = self.durations.loc[self.durations['ID_streamer'].isin(valid_streamers_id)]
             count1 -= self.durations.shape[0]
-            print(f'Стримеров стало: {pd.unique(self.durations["ID_streamer"]).shape}')
-            print(f'Было удалено {count1} из {count0} записей с аномальными значениями.')
+            # print(f'Стримеров стало: {pd.unique(self.durations["ID_streamer"]).shape}')
+            # print(f'Было удалено {count1} из {count0} записей с аномальными значениями.')
 
             result = {
                 'status': 'success',
@@ -157,7 +155,7 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
         for streamer_id in unique_streamers:
             progress += 1
             if progress % 10 == 0:
-                print(f'{progress}/{len(unique_streamers)}')
+                # print(f'{progress}/{len(unique_streamers)}')
             loc_db = self.durations[self.durations['ID_streamer'] == streamer_id]
 
             db_join = pd.DataFrame(loc_db['join_time'])
@@ -303,7 +301,7 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
 
             self.klasterer.fit(self.XYZ_dataset)
 
-        print('Тренировка кластеризатора завершена')
+        # print('Тренировка кластеризатора завершена')
 
         if hasattr(self.klasterer, 'labels_'):
             self.cluster_dataset = pd.DataFrame(self.klasterer.labels_.astype(int), columns=['clasters'])
@@ -334,7 +332,7 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     def _create_DF(self):
-        print('начало сбора базы рекомендаций')
+        # print('начало сбора базы рекомендаций')
         # Формирование основы датасета
         data = pd.DataFrame(self.streamers2users, columns=['ID_user', 'drop'])
         data.drop(columns=['drop'], inplace=True)
@@ -359,11 +357,11 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
 
         # Удаление незаполненных полей
         self.df_rec = df_res.dropna()
-        print('База данных для рекомендаций собрана')
+        # print('База данных для рекомендаций собрана')
         return None
 
     def _create_DF_cold_start(self):
-        print('начало сбора базы рекомендаций для холодных пользоваетелй')
+        # print('начало сбора базы рекомендаций для холодных пользоваетелй')
         # Создание датасета с юзерами и соединение его с датасетом кластеров
         data = pd.DataFrame(self.streamers2users, columns=['ID_user', 'drop'])
         data.drop(columns=['drop'], inplace=True)
@@ -394,15 +392,15 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
 
         df_res = pd.DataFrame(np.array(new_arrays, dtype='object'), columns=['array_streamers'])
         self.df_cold_rec = df_res
-        print('База данных для холодный рекомендаций собрана')
+        # print('База данных для холодный рекомендаций собрана')
         return None
 
         # Пользовательский колбек
 
     def _ae_on_epoch_end(self, epoch, logs):
-        print('________________________')
-        print(f'*** ЭПОХА: {epoch + 1}, loss: {logs["loss"]} ***')
-        print('________________________')
+        # print('________________________')
+        # print(f'*** ЭПОХА: {epoch + 1}, loss: {logs["loss"]} ***')
+        # print('________________________')
         self.cur_epoch = epoch
 
     def fit(self, days=120):
@@ -475,7 +473,7 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
             }
             return result
         except Exception as e:
-            print(e)
+            # print(e)
             result = {
                 'status': 'error',
                 'message': e
@@ -493,7 +491,7 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
             df_cold_rec = pd.read_json(os.path.join(self.path, 'df_cold_rec.json'))
             return [loaded_model, klasterer, df_rec, df_cold_rec, centroid_clusters]
         except Exception as e:
-            print(f'Ошибка: {e}')
+            # print(f'Ошибка: {e}')
             return [None, None, None, None]
 
     def predict(self, user_id):  # Индекс юзера, для котороге делается предсказание

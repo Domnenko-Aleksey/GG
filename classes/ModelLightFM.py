@@ -12,7 +12,7 @@ from scipy.sparse import coo_matrix
 class ModelLightFM():
 
       def __init__(self, config):
-          print('MODEL LightFM -> INIT')
+          # print('MODEL LightFM -> INIT')
           self.config = config  # Данные из конфигурационного файла
           self.data_duration = []  # Временное хранилище списка получаемых данных
           self.df_duration = None  # Тут размещаем данные 'duration' в формате Pandas, полученные результате работы метода __get_data_duration
@@ -70,15 +70,12 @@ class ModelLightFM():
 
       # === ПОЛУЧЕНИЕ ДАННЫХ "DURATION" ПО API ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
       def __get_data_duration(self, days=30):
-          print('MODEL LightFM -> GET DATA')
-
-          # !!! БАЗА НЕ АКТУАЛЬНАЯ - ДОБАВЛЯЕМ КОСТЫЛИ ДЛЯ СМЕЩЕНИЯ ПО СРОКАМ НА1 ГОД
-          crutch = 86400 * 365
+          # print('MODEL LightFM -> GET DATA')
 
           start_time = time.time()
-          from_time = int(time.time()) - int(days) * 86400 - crutch
+          from_time = int(time.time()) - int(days) * 86400
           from_time_url = f'&from={from_time}'
-          to_time = int(time.time()) - crutch
+          to_time = int(time.time())
           from_to_time = f'&to={to_time}'
 
           # --- Соединение с GG Api и получение данных ---
@@ -97,9 +94,9 @@ class ModelLightFM():
                       # Добавляем данные в наш список
                       data_list = api_req.json()
                       self.data_duration.extend(data_list)
-                      print(i, len(self.data_duration), len(data_list))
+                      # print(i, len(self.data_duration), len(data_list))
                       if len(data_list) < self.config.gg_pagination_step:  # Шаг пагинации
-                          print(self.data_duration[0:5])
+                          # print(self.data_duration[0:5])
                           self.df_duration = pd.DataFrame.from_dict(self.data_duration)
                           break
               except:
@@ -128,15 +125,15 @@ class ModelLightFM():
 
           self.run_time += delta_time
 
-          print('--- ДАННЫЕ "DURATION" ПОЛУЧЕНЫ ---')
-          print(f'РАЗМЕР ДАННЫХ: {self.df_duration.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
-          print(self.df_duration.head(10))
+          # print('--- ДАННЫЕ "DURATION" ПОЛУЧЕНЫ ---')
+          # print(f'РАЗМЕР ДАННЫХ: {self.df_duration.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
+          # print(self.df_duration.head(10))
 
           return answer
 
       # === ПОЛУЧЕНИЕ ДАННЫХ "WEBSITE" MONGODB ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
       def __get_data_website(self, days=30):
-          print('MODEL -> GET DATA')
+          # print('MODEL -> GET DATA')
 
           start_time = time.time()
 
@@ -149,11 +146,11 @@ class ModelLightFM():
           results = website.find({"timestamp": {"$gte": timestamp}})
           res = [r for r in results]
           self.df_website = pd.DataFrame(list(res))
-          print(self.df_website.head())
+          # print(self.df_website.head())
 
-          print('--- ДАННЫЕ "WEBSITE" ПОЛУЧЕНЫ ---')
+          # print('--- ДАННЫЕ "WEBSITE" ПОЛУЧЕНЫ ---')
           delta_time = time.time() - start_time
-          print(f'РАЗМЕР ДАТАФРЕЙМА: {self.df_website.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
+          # print(f'РАЗМЕР ДАТАФРЕЙМА: {self.df_website.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
 
           answer = {
               'status': 'OK',
@@ -172,7 +169,7 @@ class ModelLightFM():
 
       # === ОБРАБОТКА ДАННЫХ WEBSITE===
       def __data_processing_website(self):
-          print('MODEL -> DATA PROCESSING')
+          # print('MODEL -> DATA PROCESSING')
           start_time = time.time()
 
           website = self.df_website
@@ -230,13 +227,13 @@ class ModelLightFM():
           }
           self.__logging(answer)
 
-          print('--- ДАННЫЕ "WEBSITE" ОБРАБОТАНЫ ---')
+          # print('--- ДАННЫЕ "WEBSITE" ОБРАБОТАНЫ ---')
 
           return answer
 
       # === ОБРАБОТКА ДАННЫХ DURATION===
       def __data_processing_duration(self):
-          print('MODEL -> DATA PROCESSING')
+          # print('MODEL -> DATA PROCESSING')
           start_time = time.time()
 
           durations = self.df_duration
@@ -293,12 +290,12 @@ class ModelLightFM():
           }
           self.__logging(answer)
 
-          print('--- ДАННЫЕ "DURATION" ОБРАБОТАНЫ ---')
+          # print('--- ДАННЫЕ "DURATION" ОБРАБОТАНЫ ---')
 
           return answer
 
       def __fit_model(self):
-          print('MODEL -> FIT MODEL')
+          # print('MODEL -> FIT MODEL')
           start_time = time.time()
 
           self.model = LightFM(no_components=32, loss='warp')
@@ -318,7 +315,7 @@ class ModelLightFM():
           }
           self.__logging(answer)
 
-          print('--- МОДЕЛЬ ОБУЧЕНА ---')
+          # print('--- МОДЕЛЬ ОБУЧЕНА ---')
 
           return answer
 
@@ -328,7 +325,7 @@ class ModelLightFM():
       #     with open(modelpath + 'model.pickle', 'rb') as fle:
       #         model = pickle.load(fle)
       #
-      #     print('--- МОДЕЛЬ ЗАГРУЖЕНА ---')
+      #     # print('--- МОДЕЛЬ ЗАГРУЖЕНА ---')
       #
       #     return model
 

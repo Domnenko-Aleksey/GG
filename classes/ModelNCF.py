@@ -23,7 +23,7 @@ import os
 
 class ModelNCF():
   def __init__(self, config):
-        print('MODEL NFC -> INIT')
+        # print('MODEL NFC -> INIT')
         #super(ModelNCF, self).__init__(**kwargs)
         self.config = config  # Данные из конфигурационного файла
         self.data_duration = []  # Временное хранилище списка получаемых данных
@@ -84,13 +84,10 @@ class ModelNCF():
 
     # === ПОЛУЧЕНИЕ ДАННЫХ "DURATION" ПО API ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
   def __get_data_duration(self,  days=30):
-    # !!! БАЗА НЕ АКТУАЛЬНАЯ - ДОБАВЛЯЕМ КОСТЫЛИ ДЛЯ СМЕЩЕНИЯ ПО СРОКАМ НА1 ГОД
-        crutch = 86400 * 365
-
         start_time = time.time()
-        from_time = int(time.time()) - int(days)*86400 - crutch
+        from_time = int(time.time()) - int(days)*86400
         from_time_url = f'&from={from_time}'
-        to_time = int(time.time()) - crutch
+        to_time = int(time.time())
         from_to_time = f'&to={to_time}'
 
         # --- Соединение с GG Api и получение данных ---
@@ -143,7 +140,7 @@ class ModelNCF():
 
     # === ПОЛУЧЕНИЕ ДАННЫХ "WEBSITE" MONGODB ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
   def __get_data_website(self, days=30):
-        print('MODEL -> GET DATA')
+        # print('MODEL -> GET DATA')
 
         start_time = time.time()
 
@@ -156,11 +153,11 @@ class ModelNCF():
         results = website.find({"timestamp":{"$gte":timestamp}})
         res = [r for r in results]
         self.df_website = pd.DataFrame(list(res))
-        print(self.df_website.head())
+        # print(self.df_website.head())
 
-        print('--- ДАННЫЕ "WEBSITE" ПОЛУЧЕНЫ ---')
+        # print('--- ДАННЫЕ "WEBSITE" ПОЛУЧЕНЫ ---')
         delta_time = time.time() - start_time
-        print(f'РАЗМЕР ДАТАФРЕЙМА: {self.df_website.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
+        # print(f'РАЗМЕР ДАТАФРЕЙМА: {self.df_website.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
 
         answer = {
             'status': 'OK', 
@@ -273,7 +270,7 @@ class ModelNCF():
 
   def model_save(model, path):
         model.save(path)
-        return print('модель сохранена')
+        return # print('модель сохранена')
 
   def model_load(path):
         return keras.models.load_model(path)

@@ -15,17 +15,17 @@ from fastai.tabular.all import *
 
 from recommenders.models.fastai.fastai_utils import cartesian_product, score
 
-print("System version: {}".format(sys.version))
-print("Pandas version: {}".format(pd.__version__))
-print("Fast AI version: {}".format(fastai.__version__))
-print("Torch version: {}".format(torch.__version__))
-print("Cuda Available: {}".format(torch.cuda.is_available()))
-print("CuDNN Enabled: {}".format(torch.backends.cudnn.enabled))
+# print("System version: {}".format(sys.version))
+# print("Pandas version: {}".format(pd.__version__))
+# print("Fast AI version: {}".format(fastai.__version__))
+# print("Torch version: {}".format(torch.__version__))
+# print("Cuda Available: {}".format(torch.cuda.is_available()))
+# print("CuDNN Enabled: {}".format(torch.backends.cudnn.enabled))
 
 
 class ModelFastai:
     def __init__(self, config):
-        print('MODEL Fastai -> INIT')
+        # print('MODEL Fastai -> INIT')
         self.config = config  # Данные из конфигурационного файла
         self.data_duration = []  # Временное хранилище списка получаемых данных
         self.df_duration = None  # Тут размещаем данные 'duration' в формате Pandas, полученные результате работы метода __get_data_duration
@@ -96,7 +96,7 @@ class ModelFastai:
 
         delta_time = time.time() - start_time
 
-        print(f'predict execution time: {round(delta_time, 4)}s')
+        # print(f'predict execution time: {round(delta_time, 4)}s')
 
         channel_list=users_items[users_items["userID"]==str(user_id)].sort_values(by='preds', ascending=False).head(n)
 
@@ -106,13 +106,10 @@ class ModelFastai:
     # === ПОЛУЧЕНИЕ ДАННЫХ "DURATION" ПО API ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
     def __get_data_duration(self,  days=30):
 
-        # !!! БАЗА НЕ АКТУАЛЬНАЯ - ДОБАВЛЯЕМ КОСТЫЛИ ДЛЯ СМЕЩЕНИЯ ПО СРОКАМ НА1 ГОД
-        crutch = 86400 * 365
-
         start_time = time.time()
-        from_time = int(time.time()) - int(days)*86400 - crutch
+        from_time = int(time.time()) - int(days)*86400
         from_time_url = f'&from={from_time}'
-        to_time = int(time.time()) - crutch
+        to_time = int(time.time())
         from_to_time = f'&to={to_time}'
 
         # --- Соединение с GG Api и получение данных ---
@@ -186,7 +183,7 @@ class ModelFastai:
         df_2 = df[reducer]
 
         self.df_final = df_2.drop_duplicates()
-        # print(f'ПОСЛЕ УДАЛЕНИЯ ДУБЛИКАТОВ: {self.df_final.shape[0]}')
+        # # print(f'ПОСЛЕ УДАЛЕНИЯ ДУБЛИКАТОВ: {self.df_final.shape[0]}')
 
         # Смена имени колонок для последущей подачи в модель
         self.df_final=self.df_final.groupby(['user_id', 'channel_id']).sum().reset_index()
@@ -205,11 +202,11 @@ class ModelFastai:
                                           # через вторую запятую пишем, что будет при ложном условии
                                   np.where(self.df_final['duration'] < 120*1000*60,4.0,5.0))))
 
-        # print(f'колво каналов с рейтингом 5 = {len(self.df_final[self.df_final["rating"]==5.0])}')
-        # print(f'колво каналов с рейтингом 4 = {len(self.df_final[self.df_final["rating"]==4.0])}')
-        # print(f'колво каналов с рейтингом 3 = {len(self.df_final[self.df_final["rating"]==3.0])}')
-        # print(f'колво каналов с рейтингом 2 = {len(self.df_final[self.df_final["rating"]==2.0])}')
-        # print(f'колво каналов с рейтингом 1 = {len(self.df_final[self.df_final["rating"]==1.0])}')
+        # # print(f'колво каналов с рейтингом 5 = {len(self.df_final[self.df_final["rating"]==5.0])}')
+        # # print(f'колво каналов с рейтингом 4 = {len(self.df_final[self.df_final["rating"]==4.0])}')
+        # # print(f'колво каналов с рейтингом 3 = {len(self.df_final[self.df_final["rating"]==3.0])}')
+        # # print(f'колво каналов с рейтингом 2 = {len(self.df_final[self.df_final["rating"]==2.0])}')
+        # # print(f'колво каналов с рейтингом 1 = {len(self.df_final[self.df_final["rating"]==1.0])}')
 
         # чистка лишних столбцов
         self.df_final=self.df_final.drop(columns=['duration'],axis = 1)
@@ -238,7 +235,7 @@ class ModelFastai:
 
     # === ОБУЧЕНИЕ МОДЕЛИ ===
     def fit_model(self):
-        print('MODEL Fastai -> FIT MODEL')
+        # print('MODEL Fastai -> FIT MODEL')
         start_time = time.time()
 
         dls = CollabDataLoaders.from_df(self.df_final)
@@ -251,7 +248,7 @@ class ModelFastai:
 
         # инициализация модели
         self.model = collab_learner(dls, n_factors=64, y_range=[0,5.5], wd=1e-1)
-        # print(self.model.model) # справка по модели
+        # # print(self.model.model) # справка по модели
 
         # старт обучения
         self.model.fit_one_cycle(15, 5e-3, wd=0.1)
@@ -290,7 +287,7 @@ class ModelFastai:
     # заранее считает все предикты user*item и сохраняет в csv 
     # пока без надобности
     # def compute_predicts(self):
-    #     print('MODEL Fastai -> COMPUTE PREDICTS')
+    #     # print('MODEL Fastai -> COMPUTE PREDICTS')
     #     start_time = time.time()
 
     #     self.model = load_learner(self.files_path, 'model.pkl')
@@ -314,10 +311,10 @@ class ModelFastai:
     #                             prediction_col=PREDICTION,
     #                             top_k=n)
 
-    #     # print("Took {} seconds to compute {} predictions.".format(test_time, len(users_items)))
+    #     # # print("Took {} seconds to compute {} predictions.".format(test_time, len(users_items)))
     #     # channel_list=top_k_scores[top_k_scores["userID"]==str(user_id)].sort_values(by='prediction', ascending=False)
 
-    #     # print(channel_list['itemID'].tolist())
+    #     # # print(channel_list['itemID'].tolist())
     #     top_k_scores.to_csv(self.files_path+'/users_items_predicts.csv')
 
     #     delta_time = time.time() - start_time
