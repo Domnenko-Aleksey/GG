@@ -168,6 +168,9 @@ class ModelFastai:
         df = self.df_duration
         df.dropna(inplace=True)
 
+        # --- Находим самые популярные каналы - составляем список из 100 каналов ---
+        self.popular_list = df.groupby(['channel_id']).size().sort_values(ascending=False)[0:100].tolist()
+
         # --- Удаляем стримы с небольшим количество просмотров (20% от среднего) ---
         # Находим среднее число просмотров стрима
         view_mean = df.groupby(['channel_id']).size().mean()

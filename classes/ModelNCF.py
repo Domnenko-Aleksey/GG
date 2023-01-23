@@ -179,6 +179,9 @@ class ModelNCF():
         #df['user_id'] = pd.to_numeric(df['user_id'], errors='coerce')
         df = df.dropna()
 
+        # --- Находим самые популярные каналы - составляем список из 100 каналов ---
+        self.popular_list = df.groupby(['channel_id']).size().sort_values(ascending=False)[0:100].tolist()
+
         #кластеризация
 
         x = np.nan_to_num(df)

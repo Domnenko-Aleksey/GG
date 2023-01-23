@@ -236,6 +236,9 @@ class ModelLightFM():
           # print('MODEL -> DATA PROCESSING')
           start_time = time.time()
 
+          # --- Находим самые популярные каналы - составляем список из 100 каналов ---
+          self.popular_list = self.df_duration.groupby(['channel_id']).size().sort_values(ascending=False)[0:100].tolist()
+
           durations = self.df_duration
 
           # Удаление строк с пустыми ячейками
