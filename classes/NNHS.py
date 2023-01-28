@@ -6,13 +6,12 @@ import os
 import pandas as pd
 import numpy as np
 
-from tensorflow.keras.layers import Input, Reshape, Conv1D, Flatten, Dense, Conv1DTranspose, LSTM
+from tensorflow.keras.layers import Input, Dense
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import LambdaCallback
 
 from sklearn import cluster, mixture
-#from Config import Config
 import warnings
 
 
@@ -28,6 +27,8 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
         self.count_views = []
         self.unique_streamers = []
         self.durations = pd.DataFrame()
+        self.popular_list = []
+        self.len_recommends_list = 20  # Колличество рекоммендуемых каналов
         # ++++++++++++++++++++++++++++++++++
         self.model = None
         self.modelencoder = None
@@ -154,7 +155,7 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
         progress = 0
         for streamer_id in unique_streamers:
             progress += 1
-            if progress % 10 == 0:
+            #if progress % 10 == 0:
                 # print(f'{progress}/{len(unique_streamers)}')
             loc_db = self.durations[self.durations['ID_streamer'] == streamer_id]
 
@@ -439,6 +440,19 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
             self._create_DF()
             self._create_DF_cold_start()
 
+            # Формирование списка популярных каналов
+            j = 0
+            for i in range(len(self.df_cold_rec.iloc[j][0])):
+                for j in range(self.clusters):
+                    if (len(self.popular_list) < self.len_recommends_list):
+                        try:
+                            if self.df_cold_rec.iloc[j][0][i] not in self.popular_list:
+                                self.popular_list.append(self.df_cold_rec.iloc[j][0][i])
+                        except:
+                            continue
+                    else:
+                        break
+
             result = {
                 'status': 'success',
                 'message': 'All models have been fitted',
@@ -498,7 +512,6 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
         # self.df_rec = model[2]
         # self.df_cold_rec = model[3]
         # self.centroid_clusters = model[4]
-        n = 20
         m = 4
         db_copy = self.df_rec[self.df_rec['count_views'] > m]
 
@@ -530,14 +543,14 @@ class NNHS():  # Nearest Neighbors in a Hidden Space
                 for streamer in arr_streamers:
                     if streamer not in chanels_list:
                         chanels_list.append(streamer)
-            return chanels_list[:n]
+            return chanels_list[:self.len_recommends_list]
         else:
             # Холодный пользователь
             chanels_list = []
             j = 0
             for i in range(len(self.df_cold_rec.iloc[j][0])):
                 for j in range(self.clusters):
-                    if (len(chanels_list) < n):
+                    if (len(chanels_list) < self.len_recommends_list):
                         try:
                             if self.df_cold_rec.iloc[j][0][i] not in chanels_list:
                                 chanels_list.append(self.df_cold_rec.iloc[j][0][i])

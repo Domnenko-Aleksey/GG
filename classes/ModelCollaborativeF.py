@@ -1,24 +1,9 @@
 #проверенная в колабе версия
 #https://colab.research.google.com/drive/15NlqBzOFXjogQWEF5t6yw1eEMmQdSy_C?usp=sharing
 
-import os
-import time
-import datetime
-import requests
-import pandas as pd
-import numpy as np
-from typing import Dict, Text
-from pymongo import MongoClient
-
-import csv
-import math
-from operator import itemgetter
-
-import tensorflow as tf
-
 class ModelCollaborativeF():
     def __init__(self, config):
-        # print('MODEL Collaborative Filtration -> INIT')
+        print('MODEL Collaborative Filtration -> INIT')
         self.config = config  # Данные из конфигурационного файла
         self.data_duration = []  # Временное хранилище списка получаемых данных
         self.df_duration = None  # Тут размещаем данные 'duration' в формате Pandas, полученные результате работы метода __get_data_duration
@@ -27,6 +12,7 @@ class ModelCollaborativeF():
         self.model = None  # Тут будет храниться модель
         self.run_time = 0
         self.files_path = self.config.path + '/ModelCollaborativeF'
+        self.popular_list = []  # Тут будет храниться список 100 популярных каналов
 
         # Создаём папку для файлов модели
         if not os.path.isdir(self.files_path):
@@ -64,12 +50,15 @@ class ModelCollaborativeF():
 
     # === ПОЛУЧЕНИЕ ДАННЫХ "DURATION" ПО API ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
     def __get_data_duration(self,  days=30):
-        # print('MODEL CollaborativeF -> GET DATA duration')
+        print('MODEL CollaborativeF -> GET DATA duration')
+
+        # !!! БАЗА НЕ АКТУАЛЬНАЯ - ДОБАВЛЯЕМ КОСТЫЛИ ДЛЯ СМЕЩЕНИЯ ПО СРОКАМ НА1 ГОД
+        crutch = 86400 * 365
 
         start_time = time.time()
-        from_time = int(time.time()) - int(days)*86400
+        from_time = int(time.time()) - int(days)*86400 - crutch
         from_time_url = f'&from={from_time}'
-        to_time = int(time.time())
+        to_time = int(time.time()) - crutch
         from_to_time = f'&to={to_time}'
 
         # --- Соединение с GG Api и получение данных ---
@@ -88,9 +77,9 @@ class ModelCollaborativeF():
                     # Добавляем данные в наш список
                     data_list = api_req.json()
                     self.data_duration.extend(data_list)
-                    # print(i, len(self.data_duration), len(data_list))
+                    print(i, len(self.data_duration), len(data_list))
                     if len(data_list) < self.config.gg_pagination_step:  # Шаг пагинации
-                        # print(self.data_duration[0:5])
+                        print(self.data_duration[0:5])
                         self.df_duration = pd.DataFrame.from_dict(self.data_duration)
                         break
             except:
@@ -119,15 +108,15 @@ class ModelCollaborativeF():
 
         self.run_time += delta_time
 
-        # print('--- ДАННЫЕ "DURATION" ПОЛУЧЕНЫ ---')
-        # print(f'РАЗМЕР ДАННЫХ: {self.df_duration.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
-        # print(self.df_duration.head(10))
+        print('--- ДАННЫЕ "DURATION" ПОЛУЧЕНЫ ---')
+        print(f'РАЗМЕР ДАННЫХ: {self.df_duration.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
+        print(self.df_duration.head(10))
         return answer 
 
 
    # === ПОЛУЧЕНИЕ ДАННЫХ "WEBSITE" MONGODB ЗА НУЖНОЕ КОЛИЧЕСТВО ДНЕЙ ===
     def __get_data_website(self, days=3):
-        # print('MODEL CollaborativeF -> GET DATA websites')
+        print('MODEL CollaborativeF -> GET DATA websites')
         start_time = time.time()
 
         client = MongoClient(self.config.mongo_client_website)
@@ -139,11 +128,11 @@ class ModelCollaborativeF():
         results = website.find({"timestamp": {"$gte": timestamp}})
         res = [r for r in results]
         self.df_website = pd.DataFrame(list(res))
-        # print(self.df_website.head())
+        print(self.df_website.head())
 
-        # print('--- ДАННЫЕ "WEBSITE" ПОЛУЧЕНЫ ---')
+        print('--- ДАННЫЕ "WEBSITE" ПОЛУЧЕНЫ ---')
         delta_time = time.time() - start_time
-        # print(f'РАЗМЕР ДАТАФРЕЙМА: {self.df_website.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
+        print(f'РАЗМЕР ДАТАФРЕЙМА: {self.df_website.shape}, ВРЕМЯ ВЫПОЛНЕНИЯ: {round(delta_time, 4)}')
 
         answer = {
             'status': 'OK',
@@ -156,7 +145,7 @@ class ModelCollaborativeF():
 
     # === ОБРАБОТКА ДАННЫХ ===
     def __data_processing(self):
-        # print('MODEL CollaborativeF -> DATA PROCESSING')
+        print('MODEL CollaborativeF -> DATA PROCESSING')
         start_time = time.time()
 
         df_dirty = self.df_website
@@ -171,7 +160,7 @@ class ModelCollaborativeF():
         df_dirty=df_dirty.drop(np.where(df_dirty.event.str.contains('stream-follow'))[0])           # очищаем общий датафрейм от событий stream-follow
         df_dirty['sessionId'] = df_dirty.apply(lambda row: str(row['streamId']) + str(row['userId']), axis=1) # создаем уникальную метку для определения пользовательского просмотра. Меткой является склейка streamId и UserId
         Session_list=df_dirty.sessionId.unique()
-        ## print('Количество сессий', len(Session_list))
+        #print('Количество сессий', len(Session_list))
         User_list=df_dirty.userId.unique()
 
 # определяем продолжительность просмотров (выполняется ДОЛГО)
@@ -184,16 +173,16 @@ class ModelCollaborativeF():
           for k in range(len(cs_for_user)):
             df_cs_for_user = df_user[df_user['sessionId'] == cs_for_user[k]]
             cs_start = df_cs_for_user['timestamp'].min()
-            ## print('cs_start', cs_start)
+            #print('cs_start', cs_start)
             cs_end = df_cs_for_user['timestamp'].max()
-            ## print('cs_end', cs_end)
+            #print('cs_end', cs_end)
             cs_duration = cs_end - cs_start 
             cs_date = cs_start.date()
             row = {'userId':User_list[i], 'streamId':df_cs_for_user['streamId'].unique()[0], 'sessionId':cs_for_user[k], 'duration':cs_duration}
             df_result.loc[len(df_result.index)] = row
 # это для мониторинга процесса
-            if k/250 == k // 250: # print('сеанс:',k , 'из', len(cs_for_user))                    
-          if i > 0: # print('пользователь:',i , 'из', len(User_list), 'ETA:', (((time.time() - i_time)/i)*len(User_list))/60/60, 'часов')
+            if k/250 == k // 250: print('сеанс:',k , 'из', len(cs_for_user))                    
+          if i > 0: print('пользователь:',i , 'из', len(User_list), 'ETA:', (((time.time() - i_time)/i)*len(User_list))/60/60, 'часов')
 
         df_result['duration'] = df_result['duration'] / np.timedelta64(1, 'ms') #datetime конвертируем в количество часов
 
@@ -215,29 +204,29 @@ class ModelCollaborativeF():
           res=df_dirty.loc[((df_dirty.event=='stream-subscribe') & (df_dirty.sessionId==subscribe_list[i]))]
           sId=res.sessionId.loc[res.index[0]]
           df_result.loc[df_result.sessionId==sId, 'duration'] *= S
-          if i/10 == i//10: # print('stream-subscribe', i, 'from', len(subscribe_list))
+          if i/10 == i//10: print('stream-subscribe', i, 'from', len(subscribe_list))
 
         for i in range(len(message_list)):
           res=df_dirty.loc[((df_dirty.event=='chat-message') & (df_dirty.sessionId==message_list[i]))]
           sId=res.sessionId.loc[res.index[0]]
           df_result.loc[df_result.sessionId==sId, 'duration'] *= M
-          if i/50 == i//50: # print('chat-message', i, 'from', len(message_list))
+          if i/50 == i//50: print('chat-message', i, 'from', len(message_list))
 
         for i in range(len(donat_list)):
           res=df_dirty.loc[((df_dirty.event=='stream-donat') & (df_dirty.sessionId==donat_list[i]))]
           sId=res.sessionId.loc[res.index[0]]
           df_result.loc[df_result.sessionId==sId, 'duration'] *= D
-          if i/10 == i//10: # print('stream-donat', i, 'from', len(donat_list))
+          if i/10 == i//10: print('stream-donat', i, 'from', len(donat_list))
 
-        # print(time.time() - cur_time, 'c.')
+        print(time.time() - cur_time, 'c.')
 
 
         df_result.rename(columns={'Длительность сеанса': 'duration', 'streamId': 'Название стрима', 'userId': 'Имя пользователя'}, inplace=True)
         
         streams_list = df_result['Название стрима'].unique()
-        # print('Длина списка стримов', len(streams_list))
+        print('Длина списка стримов', len(streams_list))
         users_list = df_result['Имя пользователя'].unique()
-        # print('Длина списка пользователей', len(users_list))
+        print('Длина списка пользователей', len(users_list))
 # для оптимизации скорости работы рек.системы принято решение 
 # не учитывать пользователей, которые смотрели не более Х стримов
 # не учитывать стримы, которые смотрели менее Y раз
@@ -247,20 +236,23 @@ class ModelCollaborativeF():
         Z = 5*60000 # 5 секунд
 
         r = df_result.groupby('Имя пользователя').filter(lambda d: len(d) > X)
-        # print(r.shape)
+        print(r.shape)
         r = r.groupby('Название стрима').filter(lambda d: len(d) > Y)
-        # print(r.shape)
+        print(r.shape)
         r = r[~(r['duration'] < Z)]
-        # print(r.shape)
+        print(r.shape)
 
-        # print('Количество пользователей:', len(r['Имя пользователя'].unique()),'\nКоличество стримов:', len(r['Название стрима'].unique()))
+        print('Количество пользователей:', len(r['Имя пользователя'].unique()),'\nКоличество стримов:', len(r['Название стрима'].unique()))
 
         result=r.groupby(['Название стрима','Имя пользователя']).sum().reset_index()
         if not os.path.exists(self.files_path): os.makedirs(self.files_path)       
         result.to_csv(self.files_path + '/ggr_result_limited.csv', index=False, header=False)
 
         self.df_website = result.copy()
-
+        
+        # cписок рекомендаций
+        self.popular_list = result.groupby(['Название стрима'])['duration'].sum().sort_values(ascending=False)[0:100].index.values.tolist()
+        
         delta_time = time.time() - start_time
         self.run_time += delta_time
         answer = {
@@ -274,20 +266,20 @@ class ModelCollaborativeF():
 
     # === ЗАПИСЬ В ЛОГ ===
     def __logging(self, answer):
-        with open(self.files_path + '/status.log', 'a') as file:
+        with open(self.files_path + '/sataus.log', 'a') as file:
             now = datetime.datetime.now()
             d = f'{now.year}-{now.month}-{now.day} {now.hour}:{now.minute}:{now.second}'
-            text = f"{d}, {answer['status']}: {answer['message']} \n"
+            text = f"{d}, {answer['status']}: {answer['message']} "
             file.write(text)
 
 
     # === ОБУЧЕНИЕ МОДЕЛИ ===
     def __fit_model(self, days=30):
-        # print('MODEL Collaborative Filtration -> Fit')
+        print('MODEL Collaborative Filtration -> Fit')
         start_time = time.time()
 
         #df = self.df_website
-        ## print(df)
+        #print(df)
         #input()
 
 
@@ -374,7 +366,7 @@ class ModelCollaborativeF():
           with open(filename, 'w', newline='') as csv_file:
             csv_writer = csv.writer(csv_file)
             csv_writer.writerows(rec)  
-          # print(users, ',', i, 'из', len(RF), 'количество строк-рекомендаций', len(rec), ', время вычисления: ', time.time() - cur_time, 'c.', 'ETA:', ((time.time()-b_time)/60)/60*(len(RF)/i), 'часов')
+          print(users, ',', i, 'из', len(RF), 'количество строк-рекомендаций', len(rec), ', время вычисления: ', time.time() - cur_time, 'c.', 'ETA:', ((time.time()-b_time)/60)/60*(len(RF)/i), 'часов')
           i += 1
 
 # предрасчет рекомендации для тех, о ком не известно ничего
@@ -391,7 +383,7 @@ class ModelCollaborativeF():
         for filename in os.listdir(path):
             if os.path.getmtime(os.path.join(path, filename)) < now - 2 * 86400:
                 if os.path.isfile(os.path.join(path, filename)):
-                    # print(filename)
+                    print(filename)
                     os.remove(os.path.join(path, filename))
 
         delta_time = time.time() - start_time
